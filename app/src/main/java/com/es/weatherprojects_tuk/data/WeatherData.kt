@@ -19,11 +19,11 @@ data class ITEMS(
     val item : List<ITEM>
 )
 data class ITEM(
-    val baseData : Int,
-    val baseTime : Int,
+    val baseDate : Int,
+    val baseTime : String,
     val category : String,
     val fcstDate :String,
-    val fcstTime : Int,
+    val fcstTime : String,
     val fcstValue : String,
     val nx: Int,
     val ny : Int
