@@ -242,23 +242,11 @@ class MainActivity : AppCompatActivity() {
             if (check_result) {
                 // 권한이 허용된 경우에 대한 처리
             } else {
-                if (ActivityCompat.shouldShowRequestPermissionRationale(
-                        this,
-                        REQUIRED_PERMISSIONS[1]
-                    )
-                ) {
-                    Toast.makeText(
-                        this,
-                        "권한 설정이 거부되었습니다.\n앱을 사용하시려면 다시 실행해주세요.",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                if (ActivityCompat.shouldShowRequestPermissionRationale(this, REQUIRED_PERMISSIONS[1])) {
+                    Toast.makeText(this, "권한 설정이 거부되었습니다.\n앱을 사용하시려면 다시 실행해주세요.", Toast.LENGTH_SHORT).show()
                     finish()
                 } else {
-                    Toast.makeText(
-                        this,
-                        "권한 설정이 거부되었습니다.\n설정에서 권한을 허용해야 합니다.",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    Toast.makeText(this, "권한 설정이 거부되었습니다.\n설정에서 권한을 허용해야 합니다.", Toast.LENGTH_SHORT).show()
                 }
             }
         }
