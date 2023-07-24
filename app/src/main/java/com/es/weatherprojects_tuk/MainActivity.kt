@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.location.Address
 import android.location.Geocoder
 import android.location.Location
+import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Bundle
 import android.util.Log
@@ -52,6 +53,9 @@ class MainActivity : AppCompatActivity() {
         val binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        weatherViewModel = ViewModelProvider(this@MainActivity)[WeatherViewModel::class.java]
+
+
         //현재 시각, 날짜
         val currentTime: Long = System.currentTimeMillis() // ms로 반환
         val dateFormat1 = SimpleDateFormat("yyyyMMdd") // 년 월 일
@@ -84,7 +88,7 @@ class MainActivity : AppCompatActivity() {
         val previousHourParts = "$previousHour:30".split(":")
         val previousHourFormatted = "${previousHourParts[0]}${previousHourParts[1]}"
 
-        //현재 날짜 영어로 보여주기
+        //현재 날짜 영어로 보여주기 - UI
         val currentDate = Calendar.getInstance().time
         val formatter = SimpleDateFormat("yyyy/MMMM,dd", Locale.ENGLISH) // 월(MMMM)을 전체 영문 이름으로 표시합니다.
         binding.dateTv.text = formatter.format(currentDate)
@@ -105,9 +109,9 @@ class MainActivity : AppCompatActivity() {
             Log.d("parts", parts.toString())
             val extracted = parts[2] + " " + parts[3]
             Log.d("extracted", extracted)
+
             binding.locationTv.text = extracted
 
-            weatherViewModel = ViewModelProvider(this@MainActivity).get(WeatherViewModel::class.java)
             weatherViewModel.getWeather(data_type, num_of_rows, page_no, previousDay, "2300", locatXY.nx, locatXY.ny)
             weatherViewModel.getDayWeather(data_type, num_of_rows, page_no, base_date, previousHourFormatted, locatXY.nx, locatXY.ny)
 
@@ -139,7 +143,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private suspend fun getLocation(): LatLng {
+    private suspend fun getLocation(): LatLng = withContext(Dispatchers.IO) {
         val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager?
         val userLocation: Location? = getLatLng()
         val de = LatLng()
@@ -168,7 +172,8 @@ class MainActivity : AppCompatActivity() {
             de.nx = LatXLngY.x.toInt()
             de.ny = LatXLngY.y.toInt()
         }
-        return de
+
+        return@withContext de
     }
 
     internal class LatLng {
@@ -180,56 +185,55 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun getLatLng(): Location? {
-        val hasFineLocationPermission =
-            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-        val hasCoarseLocationPermission =
-            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
+        val hasFineLocationPermission = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+        val hasCoarseLocationPermission = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
 
         if (hasFineLocationPermission == PackageManager.PERMISSION_GRANTED && hasCoarseLocationPermission == PackageManager.PERMISSION_GRANTED) {
             val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager?
-            val locationProvider = LocationManager.GPS_PROVIDER
-            val currentLatLng = locationManager?.getLastKnownLocation(locationProvider)
+            val currentLatLng = locationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER) ?: locationManager?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+
             if (currentLatLng == null) {
-                Toast.makeText(
-                    this,
-                    "Unable to get location. Please make sure location is enabled",
-                    Toast.LENGTH_SHORT
-                ).show()
+                runOnUiThread { // 메인 스레드에서 실행
+                    Toast.makeText(this, "Unable to get location. Please make sure location is enabled", Toast.LENGTH_SHORT).show()
+                }
                 return null
             }
+
             return currentLatLng
         } else {
-            if (ActivityCompat.shouldShowRequestPermissionRationale(
-                    this,
-                    REQUIRED_PERMISSIONS[0]
-                )
-            ) {
-                Toast.makeText(
-                    this,
-                    "앱을 실행하려면 위치 접근 권한이 필요합니다.",
-                    Toast.LENGTH_SHORT
-                ).show()
-                ActivityCompat.requestPermissions(
-                    this,
-                    REQUIRED_PERMISSIONS,
-                    PERMISSIONS_REQUEST_CODE
-                )
+            if (ActivityCompat.shouldShowRequestPermissionRationale(this, REQUIRED_PERMISSIONS[0])) {
+                Toast.makeText(this, "앱을 실행하려면 위치 접근 권한이 필요합니다.", Toast.LENGTH_SHORT).show()
+                ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, PERMISSIONS_REQUEST_CODE)
             } else {
-                ActivityCompat.requestPermissions(
-                    this,
-                    REQUIRED_PERMISSIONS,
-                    PERMISSIONS_REQUEST_CODE
-                )
+                ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, PERMISSIONS_REQUEST_CODE)
             }
             return null
         }
     }
 
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
+    //위치 변경되면 업데이트
+    private val locationListener: LocationListener = object : LocationListener {
+        override fun onLocationChanged(location: Location) {
+            // Called when a new location is found by the network location provider.
+            val latitude = location.latitude
+            val longitude = location.longitude
+            Log.d("Updated Location", "Latitude: $latitude, Longitude: $longitude")
+        }
+
+        override fun onStatusChanged(provider: String, status: Int, extras: Bundle) {
+            // Called when the provider status changes.
+        }
+
+        override fun onProviderEnabled(provider: String) {
+            // Called when the provider is enabled by the user.
+        }
+
+        override fun onProviderDisabled(provider: String) {
+            // Called when the provider is disabled by the user.
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == PERMISSIONS_REQUEST_CODE && grantResults.size == REQUIRED_PERMISSIONS.size) {
             var check_result = true
