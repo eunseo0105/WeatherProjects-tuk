@@ -1,5 +1,6 @@
 package com.es.weatherprojects_tuk
 
+import LocationViewModel
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ContentValues.TAG
@@ -24,11 +25,8 @@ import com.es.weatherprojects_tuk.ViewModel.WeatherViewModel
 import com.es.weatherprojects_tuk.adapter.RecyclerViewAdapter
 import com.es.weatherprojects_tuk.data.WEATHER
 import com.es.weatherprojects_tuk.data.convertBaseTIme
-import com.es.weatherprojects_tuk.data.convertGRID_GPS
 import com.es.weatherprojects_tuk.databinding.ActivityMainBinding
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -39,6 +37,7 @@ class MainActivity : AppCompatActivity() {
 
     // 뷰모델 생성
     private lateinit var weatherViewModel: WeatherViewModel
+    private lateinit var locationViewModel : LocationViewModel
 
     //권한 설정
     private val PERMISSIONS_REQUEST_CODE = 100
@@ -54,7 +53,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         weatherViewModel = ViewModelProvider(this@MainActivity)[WeatherViewModel::class.java]
-
+        locationViewModel = ViewModelProvider(this@MainActivity)[LocationViewModel::class.java]
 
         //현재 시각, 날짜
         val currentTime: Long = System.currentTimeMillis() // ms로 반환
@@ -101,21 +100,45 @@ class MainActivity : AppCompatActivity() {
         val base_date = dateFormat1.format(currentTime).toInt()
         Log.d("dateFormat1", base_date.toString())
 
+        // 권한 허용 -> 비동기로 위치 정보 불러오기, 허용 X -> 권한 요청
+        if (checkPermissions()) {
+            //위치 정보 가져오는 동안 프로그래스바 실행, 위치 정보 다 가져오면 placeCategory로 intent
+            locationViewModel.fetchLocationAsync()
+        } else {
+            ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, PERMISSIONS_REQUEST_CODE)
+        }
 
-        lifecycleScope.launch {
-            val locatXY = getLocation()
 
-            val parts = locatXY.address.split(" ")
+//        lifecycleScope.launch {
+//            val locatXY = getLocation()
+//
+//            val parts = locatXY.address.split(" ")
+//            Log.d("parts", parts.toString())
+//            val extracted = parts[2] + " " + parts[3]
+//            Log.d("extracted", extracted)
+//
+//            binding.locationTv.text = extracted
+//
+//            weatherViewModel.getWeather(data_type, num_of_rows, page_no, previousDay, "2300", locatXY.nx, locatXY.ny)
+//            weatherViewModel.getDayWeather(data_type, num_of_rows, page_no, base_date, previousHourFormatted, locatXY.nx, locatXY.ny)
+//
+//        }
+
+
+        locationViewModel.address.observe(this){
+            val parts = it.split(" ")
             Log.d("parts", parts.toString())
             val extracted = parts[2] + " " + parts[3]
             Log.d("extracted", extracted)
 
             binding.locationTv.text = extracted
-
-            weatherViewModel.getWeather(data_type, num_of_rows, page_no, previousDay, "2300", locatXY.nx, locatXY.ny)
-            weatherViewModel.getDayWeather(data_type, num_of_rows, page_no, base_date, previousHourFormatted, locatXY.nx, locatXY.ny)
-
         }
+
+        locationViewModel.locationData.observe(this){
+            weatherViewModel.getWeather(data_type, num_of_rows, page_no, previousDay, "2300", it.x, it.y)
+            weatherViewModel.getDayWeather(data_type, num_of_rows, page_no, base_date, previousHourFormatted, it.x, it.y)
+        }
+
 
         weatherViewModel.weatherResponse.observe(this) { response ->
             Log.d(TAG, "${response.body()}")
@@ -143,73 +166,39 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private suspend fun getLocation(): LatLng = withContext(Dispatchers.IO) {
-        val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager?
-        val userLocation: Location? = getLatLng()
-        val de = LatLng()
-        if (userLocation != null) {
-            val latitude = userLocation.latitude
-            de.lat = latitude
-            val longitude = userLocation.longitude
-            de.long = longitude
-            Log.d("CheckCurrentLocation", "현재 내 위치 값: $latitude, $longitude")
-
-            val mGeoCoder = Geocoder(applicationContext, Locale.KOREAN)
-            var mResultList: List<Address>? = null
-            try {
-                mResultList = mGeoCoder.getFromLocation(latitude, longitude, 1)
-            } catch (e: Exception) {
-                e.printStackTrace()
+    // 위치 권한이 허용되었는지 확인 -> true, false
+    private fun checkPermissions(): Boolean {
+        for (permission in REQUIRED_PERMISSIONS) {
+            if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
+                return false
             }
-            if (mResultList != null) {
-                Log.d("CheckCurrentLocation", mResultList[0].getAddressLine(0))
-                de.address = mResultList[0].getAddressLine(0)
-            }
-
-            val LatXLngY = convertGRID_GPS(TO_GRID, latitude, longitude)
-            Log.d("LATXLNGY", "${LatXLngY.x} and ${LatXLngY.y}")
-
-            de.nx = LatXLngY.x.toInt()
-            de.ny = LatXLngY.y.toInt()
         }
-
-        return@withContext de
+        return true
     }
-
-    internal class LatLng {
-        var lat = 0.0
-        var long = 0.0
-        var address = "대한민국 경기도 수원시 팔달구"
-        var nx = 0
-        var ny = 0
-    }
-
-    private fun getLatLng(): Location? {
-        val hasFineLocationPermission = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-        val hasCoarseLocationPermission = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
-
-        if (hasFineLocationPermission == PackageManager.PERMISSION_GRANTED && hasCoarseLocationPermission == PackageManager.PERMISSION_GRANTED) {
-            val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager?
-            val currentLatLng = locationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER) ?: locationManager?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-
-            if (currentLatLng == null) {
-                runOnUiThread { // 메인 스레드에서 실행
-                    Toast.makeText(this, "Unable to get location. Please make sure location is enabled", Toast.LENGTH_SHORT).show()
+    // 위치 권한 요청 후 사용자의 응답을 처리하는 메서드
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == PERMISSIONS_REQUEST_CODE && grantResults.size == REQUIRED_PERMISSIONS.size) {
+            var checkResult = true
+            for (result in grantResults) {
+                if (result != PackageManager.PERMISSION_GRANTED) {
+                    checkResult = false
+                    break
                 }
-                return null
             }
-
-            return currentLatLng
-        } else {
-            if (ActivityCompat.shouldShowRequestPermissionRationale(this, REQUIRED_PERMISSIONS[0])) {
-                Toast.makeText(this, "앱을 실행하려면 위치 접근 권한이 필요합니다.", Toast.LENGTH_SHORT).show()
-                ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, PERMISSIONS_REQUEST_CODE)
-            } else {
-                ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, PERMISSIONS_REQUEST_CODE)
+            // 모든 권한 허용됨 -> 위치 정보 가져오기
+            if (checkResult) {
+                //위치 정보 가져오는 동안 프로그래스바 실행, 위치 정보 다 가져오면 placeCategory로 intent
+                locationViewModel.fetchLocationAsync()
             }
-            return null
+            // 권한 거부됨 -> 권한이 필요하다는 toast 메세지
+            else {
+                Toast.makeText(this, "Location permissions are necessary for the app to run", Toast.LENGTH_SHORT).show()
+            }
         }
     }
+
+
 
     //위치 변경되면 업데이트
     private val locationListener: LocationListener = object : LocationListener {
@@ -233,28 +222,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == PERMISSIONS_REQUEST_CODE && grantResults.size == REQUIRED_PERMISSIONS.size) {
-            var check_result = true
-            for (result in grantResults) {
-                if (result != PackageManager.PERMISSION_GRANTED) {
-                    check_result = false
-                    break
-                }
-            }
-            if (check_result) {
-                // 권한이 허용된 경우에 대한 처리
-            } else {
-                if (ActivityCompat.shouldShowRequestPermissionRationale(this, REQUIRED_PERMISSIONS[1])) {
-                    Toast.makeText(this, "권한 설정이 거부되었습니다.\n앱을 사용하시려면 다시 실행해주세요.", Toast.LENGTH_SHORT).show()
-                    finish()
-                } else {
-                    Toast.makeText(this, "권한 설정이 거부되었습니다.\n설정에서 권한을 허용해야 합니다.", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
 
     private suspend fun fetchAndShowWeather(weatherData: WEATHER?,hour:Int, basedate :Int) {
 
