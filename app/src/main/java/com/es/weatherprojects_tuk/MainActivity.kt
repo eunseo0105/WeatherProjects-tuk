@@ -26,15 +26,14 @@ import com.es.weatherprojects_tuk.adapter.RecyclerViewAdapter
 import com.es.weatherprojects_tuk.data.WEATHER
 import com.es.weatherprojects_tuk.data.convertBaseTIme
 import com.es.weatherprojects_tuk.databinding.ActivityMainBinding
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
-class MainActivity : AppCompatActivity() {
-    //위경도 <-> 좌표 변환
-    private val TO_GRID = 0
-    private val TO_GPS = 1
 
+@AndroidEntryPoint
+class MainActivity : AppCompatActivity() {
     // 뷰모델 생성
     private lateinit var weatherViewModel: WeatherViewModel
     private lateinit var locationViewModel : LocationViewModel
@@ -108,23 +107,6 @@ class MainActivity : AppCompatActivity() {
             ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, PERMISSIONS_REQUEST_CODE)
         }
 
-
-//        lifecycleScope.launch {
-//            val locatXY = getLocation()
-//
-//            val parts = locatXY.address.split(" ")
-//            Log.d("parts", parts.toString())
-//            val extracted = parts[2] + " " + parts[3]
-//            Log.d("extracted", extracted)
-//
-//            binding.locationTv.text = extracted
-//
-//            weatherViewModel.getWeather(data_type, num_of_rows, page_no, previousDay, "2300", locatXY.nx, locatXY.ny)
-//            weatherViewModel.getDayWeather(data_type, num_of_rows, page_no, base_date, previousHourFormatted, locatXY.nx, locatXY.ny)
-//
-//        }
-
-
         locationViewModel.address.observe(this){
             val parts = it.split(" ")
             Log.d("parts", parts.toString())
@@ -164,6 +146,22 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+
+        //오늘 버튼 클릭
+        binding.todayBtn.setOnClickListener {
+
+        }
+
+        //내일 버튼 클릭
+        binding.tomorrowBtn.setOnClickListener {
+
+        }
+
+        //이번주 버튼 클릭
+        binding.weekBtn.setOnClickListener {
+
+        }
+
     }
 
     // 위치 권한이 허용되었는지 확인 -> true, false
@@ -188,7 +186,6 @@ class MainActivity : AppCompatActivity() {
             }
             // 모든 권한 허용됨 -> 위치 정보 가져오기
             if (checkResult) {
-                //위치 정보 가져오는 동안 프로그래스바 실행, 위치 정보 다 가져오면 placeCategory로 intent
                 locationViewModel.fetchLocationAsync()
             }
             // 권한 거부됨 -> 권한이 필요하다는 toast 메세지
