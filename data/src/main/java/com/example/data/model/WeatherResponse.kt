@@ -1,6 +1,7 @@
-package com.es.weatherprojects_tuk.data
+package com.example.data.model
 
-data class WEATHER (
+
+data class WEATHERRESPONSE (
     val response : RESPONSE
 )
 data class RESPONSE (

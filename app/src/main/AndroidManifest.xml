@@ -1,12 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    package="com.es.weatherprojects_tuk"
     tools:ignore="ExtraText">
     //인터넷 권한 추가
     <uses-permission android:name="android.permission.INTERNET" />
-
+    //위치 권한
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <application
+    android:name=".MyApplication"
     android:allowBackup="true"
     android:dataExtractionRules="@xml/data_extraction_rules"
     android:fullBackupContent="@xml/backup_rules"
@@ -17,14 +20,18 @@
     android:theme="@style/Theme.WeatherProjectstuk"
     android:usesCleartextTraffic="true"
     tools:targetApi="33">
+
         <activity
         android:name=".MainActivity"
+        android:screenOrientation="portrait"
         android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- Recommended for Android 9 (API level 28) and lower. -->
+        <!-- Required for Android 10 (API level 29) and higher. -->
     </application>
 
 </manifest>
