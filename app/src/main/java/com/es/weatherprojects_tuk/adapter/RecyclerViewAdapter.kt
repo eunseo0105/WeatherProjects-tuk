@@ -7,8 +7,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.es.weatherprojects_tuk.R
-import com.es.weatherprojects_tuk.data.ITEM
-import com.es.weatherprojects_tuk.data.WEATHER
+import com.example.domain.model.ITEM
 import com.google.android.gms.awareness.state.Weather
 import org.w3c.dom.Text
 import java.text.SimpleDateFormat

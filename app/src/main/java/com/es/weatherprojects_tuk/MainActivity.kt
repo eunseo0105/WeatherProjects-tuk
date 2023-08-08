@@ -1,16 +1,11 @@
 package com.es.weatherprojects_tuk
 
-import LocationViewModel
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ContentValues.TAG
-import android.content.Context
 import android.content.pm.PackageManager
-import android.location.Address
-import android.location.Geocoder
 import android.location.Location
 import android.location.LocationListener
-import android.location.LocationManager
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -21,11 +16,12 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.es.weatherprojects_tuk.ViewModel.WeatherViewModel
+import com.es.weatherprojects_tuk.viewmodel.WeatherViewModel
 import com.es.weatherprojects_tuk.adapter.RecyclerViewAdapter
-import com.es.weatherprojects_tuk.data.WEATHER
 import com.es.weatherprojects_tuk.data.convertBaseTIme
 import com.es.weatherprojects_tuk.databinding.ActivityMainBinding
+import com.es.weatherprojects_tuk.viewmodel.LocationViewModel
+import com.example.domain.model.Weather
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -107,26 +103,25 @@ class MainActivity : AppCompatActivity() {
             ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, PERMISSIONS_REQUEST_CODE)
         }
 
-        locationViewModel.address.observe(this){
-            val parts = it.split(" ")
-            Log.d("parts", parts.toString())
-            val extracted = parts[2] + " " + parts[3]
-            Log.d("extracted", extracted)
-
-            binding.locationTv.text = extracted
-        }
+//        locationViewModel.address.observe(this){
+//            val parts = it.split(" ")
+//            Log.d("parts", parts.toString())
+//            val extracted = parts[2] + " " + parts[3]
+//            Log.d("extracted", extracted)
+//
+//            binding.locationTv.text = extracted
+//        }
 
         locationViewModel.locationData.observe(this){
-            weatherViewModel.getWeather(data_type, num_of_rows, page_no, previousDay, "2300", it.x, it.y)
-            weatherViewModel.getDayWeather(data_type, num_of_rows, page_no, base_date, previousHourFormatted, it.x, it.y)
+            weatherViewModel.getWeather(data_type, num_of_rows, page_no, previousDay, "2300", it.x.toInt(), it.y.toInt())
+            weatherViewModel.getDayWeather(data_type, num_of_rows, page_no, base_date, previousHourFormatted, it.x.toInt(), it.y.toInt())
         }
-
 
         weatherViewModel.weatherResponse.observe(this) { response ->
             Log.d(TAG, "${response.body()}")
             response.body()?.response?.body?.items?.item?.forEach { item ->
                 if (item.category == "TMN" && item.fcstDate == base_date.toString()) {
-                    Log.d("hi", item.fcstValue)
+                    Log.d("lessTemp", item.fcstValue)
                     binding.lessMostTempTv.text = "${item.fcstValue}°/"
                 } else if (item.category == "TMX" && item.fcstDate == base_date.toString()) {
                     binding.mostTempTv.text = "${item.fcstValue}°"
@@ -134,7 +129,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             lifecycleScope.launch {
-                fetchAndShowWeather(response.body(),hour, base_date)
+                fetchAndShowWeather(response.body()!! ,hour, base_date)
             }
         }
 
@@ -220,10 +215,10 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-    private suspend fun fetchAndShowWeather(weatherData: WEATHER?,hour:Int, basedate :Int) {
+    private suspend fun fetchAndShowWeather(weatherData: Weather,hour:Int, basedate :Int) {
 
         // 'TMP' 카테고리이고, 현재 시간부터 12시간 동안의 데이터만 필터링
-        val filteredData = weatherData?.response?.body?.items?.item?.filter {
+        val filteredData = weatherData.response.body.items.item.filter {
             it.category == "TMP" && it.fcstDate== basedate.toString() &&it.fcstTime.toInt() in hour..(hour + 2400)
         }
 
@@ -232,6 +227,6 @@ class MainActivity : AppCompatActivity() {
         // RecyclerView 설정
         val recyclerView: RecyclerView = findViewById(R.id.recycler_view)
         recyclerView.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
-        recyclerView.adapter = filteredData?.let { RecyclerViewAdapter(it) }
+        recyclerView.adapter = filteredData.let { RecyclerViewAdapter(it) }
     }
 }

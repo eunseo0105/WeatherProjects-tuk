@@ -16,6 +16,6 @@ interface DayWeatherAPi {
         @Query("base_time") base_time: String,
         @Query("nx") nx: Int,
         @Query("ny") ny: Int
-    ): Response<WEATHERRESPONSE>
+    ): WEATHERRESPONSE
 
 }

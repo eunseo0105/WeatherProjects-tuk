@@ -3,9 +3,9 @@ package com.example.data.mapper
 import com.example.data.model.LocationResponse
 import com.example.domain.model.Location
 
-fun MapperToLocation(locationResponse: LocationResponse) : Location {
+fun MapperToLocation(latXLngY: LatXLngY) : Location {
     return Location(
-        x = locationResponse.x,
-        y = locationResponse.y
+        x = latXLngY.x,
+        y = latXLngY.y
     )
 }
