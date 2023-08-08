@@ -1,4 +1,4 @@
-package com.es.weatherprojects_tuk.data
+package com.example.data.mapper
 
  fun convertGRID_GPS(mode: Int, lat_X: Double, lng_Y: Double): LatXLngY {
      //위경도 <-> 좌표 변환
