@@ -9,5 +9,7 @@ class LocationUseCase @Inject constructor(private val locationRepository: Locati
     suspend fun getLocation() : com.example.domain.model.Location {
         return locationRepository.getLocation()
     }
-
+    suspend fun getAddress(latitude: Double, longitude : Double, num : Int): String? {
+        return locationRepository.getAddress(latitude, longitude, num)
+    }
 }
