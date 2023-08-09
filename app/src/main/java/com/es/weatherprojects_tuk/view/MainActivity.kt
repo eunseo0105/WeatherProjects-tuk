@@ -1,4 +1,4 @@
-package com.es.weatherprojects_tuk
+package com.es.weatherprojects_tuk.view
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -16,6 +16,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.es.weatherprojects_tuk.R
 import com.es.weatherprojects_tuk.viewmodel.WeatherViewModel
 import com.es.weatherprojects_tuk.adapter.RecyclerViewAdapter
 import com.es.weatherprojects_tuk.data.convertBaseTIme
@@ -40,6 +41,7 @@ class MainActivity : AppCompatActivity() {
         Manifest.permission.ACCESS_FINE_LOCATION,
         Manifest.permission.ACCESS_COARSE_LOCATION
     )
+
 
     @SuppressLint("SetTextI18n")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -68,7 +70,6 @@ class MainActivity : AppCompatActivity() {
 
         //DayWeather basetime
         val calendar = Calendar.getInstance()
-        val currenttime = calendar.timeInMillis
 
         val currentMinute = calendar.get(Calendar.MINUTE)
         val currenthour = calendar.get(Calendar.HOUR_OF_DAY)
@@ -87,33 +88,41 @@ class MainActivity : AppCompatActivity() {
         val formatter = SimpleDateFormat("yyyy/MMMM,dd", Locale.ENGLISH) // 월(MMMM)을 전체 영문 이름으로 표시합니다.
         binding.dateTv.text = formatter.format(currentDate)
 
+        //내일 날짜
+        calendar.add(Calendar.DAY_OF_MONTH, 1) // 현재 날짜에 하루 추가
+        val next_date = dateFormat1.format(calendar.time).toInt()
+
+
         //서버로 요청 보낼 데이터 정의
         val num_of_rows = 400
         val page_no = 1
         val data_type = "JSON"
-        val base_time = convertBaseTIme(dateFormat2.format(currentTime))
         val base_date = dateFormat1.format(currentTime).toInt()
-        Log.d("dateFormat1", base_date.toString())
 
         // 권한 허용 -> 비동기로 위치 정보 불러오기, 허용 X -> 권한 요청
         if (checkPermissions()) {
-            //위치 정보 가져오는 동안 프로그래스바 실행, 위치 정보 다 가져오면 placeCategory로 intent
+            //위치 정보 가져오기
             locationViewModel.fetchLocationAsync()
         } else {
             ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, PERMISSIONS_REQUEST_CODE)
         }
 
-//        locationViewModel.address.observe(this){
-//            val parts = it.split(" ")
-//            Log.d("parts", parts.toString())
-//            val extracted = parts[2] + " " + parts[3]
-//            Log.d("extracted", extracted)
-//
-//            binding.locationTv.text = extracted
-//        }
+
+        locationViewModel.adsLocation.observe(this){
+            locationViewModel.getAddress(it.lat, it.lng, 1)
+
+        }
+        locationViewModel.address.observe(this){
+            val parts = it!!.split(" ")
+            Log.d("parts", parts.toString())
+            val extracted = parts[2] + " " + parts[3]
+            Log.d("extracted", extracted)
+
+            binding.locationTv.text = extracted
+        }
 
         locationViewModel.locationData.observe(this){
-            weatherViewModel.getWeather(data_type, num_of_rows, page_no, previousDay, "2300", it.x.toInt(), it.y.toInt())
+            weatherViewModel.getWeather(data_type, num_of_rows, page_no, base_date, "0200", it.x.toInt(), it.y.toInt())
             weatherViewModel.getDayWeather(data_type, num_of_rows, page_no, base_date, previousHourFormatted, it.x.toInt(), it.y.toInt())
         }
 
@@ -127,10 +136,9 @@ class MainActivity : AppCompatActivity() {
                     binding.mostTempTv.text = "${item.fcstValue}°"
                 }
             }
+            weatherViewModel.todayWeather(response.body()!! ,hour, base_date)
+            weatherViewModel.tomorrowWeather(response.body()!!, next_date)
 
-            lifecycleScope.launch {
-                fetchAndShowWeather(response.body()!! ,hour, base_date)
-            }
         }
 
         weatherViewModel.dayWeatherResponse.observe(this) { response ->
@@ -142,19 +150,30 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        //default - 오늘 날씨
+        switchFragment(0)
+
         //오늘 버튼 클릭
         binding.todayBtn.setOnClickListener {
+            Log.d("clicked", "clicked")
+            // 현재 버튼 눌림 표시
+//            binding.todayBtn.setBackgroundResource(R.color.purple_200) // 예: 눌림 상태의 배경
+//
+            // 다른 버튼들 눌림 표시 해제
+//            binding.tomorrowBtn.setBackgroundResource(R.color.white) // 예: 기본 배경
+//            binding.weekBtn.setBackgroundResource(R.color.white)
 
+            switchFragment(0)
         }
 
         //내일 버튼 클릭
         binding.tomorrowBtn.setOnClickListener {
-
+            switchFragment(1)
         }
 
         //이번주 버튼 클릭
         binding.weekBtn.setOnClickListener {
-
+            switchFragment(2)
         }
 
     }
@@ -192,41 +211,19 @@ class MainActivity : AppCompatActivity() {
 
 
 
-    //위치 변경되면 업데이트
-    private val locationListener: LocationListener = object : LocationListener {
-        override fun onLocationChanged(location: Location) {
-            // Called when a new location is found by the network location provider.
-            val latitude = location.latitude
-            val longitude = location.longitude
-            Log.d("Updated Location", "Latitude: $latitude, Longitude: $longitude")
+    private fun switchFragment(flag: Int) {
+        val transaction = supportFragmentManager.beginTransaction()
+        when(flag){
+            0 -> {
+                transaction.replace(R.id.frame_layout, TodayFragment())
+            }
+            1 -> {
+                transaction.replace(R.id.frame_layout, TomorrowFragment())
+            }
+            2 -> {
+                transaction.replace(R.id.frame_layout, TodayFragment())
+            }
         }
-
-        override fun onStatusChanged(provider: String, status: Int, extras: Bundle) {
-            // Called when the provider status changes.
-        }
-
-        override fun onProviderEnabled(provider: String) {
-            // Called when the provider is enabled by the user.
-        }
-
-        override fun onProviderDisabled(provider: String) {
-            // Called when the provider is disabled by the user.
-        }
-    }
-
-
-    private suspend fun fetchAndShowWeather(weatherData: Weather,hour:Int, basedate :Int) {
-
-        // 'TMP' 카테고리이고, 현재 시간부터 12시간 동안의 데이터만 필터링
-        val filteredData = weatherData.response.body.items.item.filter {
-            it.category == "TMP" && it.fcstDate== basedate.toString() &&it.fcstTime.toInt() in hour..(hour + 2400)
-        }
-
-        Log.d("filteredData", filteredData.toString())
-
-        // RecyclerView 설정
-        val recyclerView: RecyclerView = findViewById(R.id.recycler_view)
-        recyclerView.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
-        recyclerView.adapter = filteredData.let { RecyclerViewAdapter(it) }
+        transaction.commit()
     }
 }

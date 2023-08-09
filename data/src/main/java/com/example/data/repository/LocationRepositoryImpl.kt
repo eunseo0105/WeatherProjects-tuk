@@ -21,4 +21,8 @@ class LocationRepositoryImpl @Inject constructor(private val locationSource: Loc
         val reponse = MapperToLocation(gpsXY)
         return reponse
     }
+
+    override suspend fun getAddress(latitude: Double, longitude : Double, num : Int) : String?{
+        return locationSource.getAddress(latitude,longitude, num)
+    }
 }
